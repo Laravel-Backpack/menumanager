@@ -30,6 +30,8 @@ class MenuCRUDServiceProvider extends ServiceProvider
     {
         // publish migrations
         $this->publishes([__DIR__.'/database/migrations' => database_path('migrations')], 'migrations');
+        // public config
+        $this->publishes([__DIR__.'/config/menu.php' => config_path('backpack/menu.php')]);
     }
 
     /**

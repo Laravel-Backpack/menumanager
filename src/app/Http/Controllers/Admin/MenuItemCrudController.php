@@ -12,13 +12,26 @@ class MenuItemCrudController extends CrudController
     use \Backpack\CRUD\app\Http\Controllers\Operations\DeleteOperation;
     use \Backpack\CRUD\app\Http\Controllers\Operations\ReorderOperation;
 
+    private $menu_id;
+    private $menu;
+
     public function setup()
     {
+        $this->menu_id = \Route::current()->parameter('menu_id');
+        $this->menu = \Backpack\MenuCRUD\app\Models\Menu::find($this->menu_id);
+        if ($this->menu == null) {
+            abort(404);
+        }
+
         $this->crud->setModel("Backpack\MenuCRUD\app\Models\MenuItem");
         $this->crud->setRoute(config('backpack.base.route_prefix').'/menu-item');
         $this->crud->setEntityNameStrings('menu item', 'menu items');
+        $this->crud->addClause('orderBy', 'lft', 'asc');
+        $this->crud->addClause('where', 'menu_id', $this->menu_id);
 
-        $this->crud->enableReorder('name', 3);
+        $this->crud->setHeading('menu items'." - <a href='".backpack_url('menu/'.$this->menu_id.'/show')."'>".$this->menu->name.'</a>', false);
+
+        $this->crud->enableReorder('name', 30); // Basically infinite
 
         $this->crud->operation('list', function () {
             $this->crud->addColumn([
@@ -39,6 +52,11 @@ class MenuItemCrudController extends CrudController
             $this->crud->addField([
                 'name' => 'name',
                 'label' => 'Label',
+            ]);
+            $this->crud->addField([
+                'name'  => 'menu_id',
+                'type'  => 'hidden',
+                'value' => $this->menu_id,
             ]);
             $this->crud->addField([
                 'label' => 'Parent',

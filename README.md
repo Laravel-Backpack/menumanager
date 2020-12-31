@@ -37,11 +37,14 @@ The only PRO of installing it as a package is that you may benefit from updates.
 
 1) [Download the latest build](https://github.com/Laravel-Backpack/MenuCRUD/archive/master.zip).
 
-2) Paste the 'app' and 'database' folders over your projects (merge them). No file overwrite warnings should come up.
+2) Paste the 'app', 'config', and 'database' folders over your projects (merge them). No file overwrite warnings should come up.
 
 3) Replace all mentions of 'Backpack\MenuCRUD\app' in the pasted files with your application's namespace ('App' if you haven't changed it):
 - app/Http/Controllers/Admin/MenuItemCrudController.php
+- app/Http/Controllers/Admin/MenuCrudController.php
+- app/Http/Requests/Request/MenuRequest.php
 - app/Models/MenuItem.php
+- app/Models/Menu.php
 
 4) Run the migration to have the database table we need:
 ```
@@ -53,14 +56,15 @@ php artisan migrate
 ```
 Route::group(['prefix' => config('backpack.base.route_prefix', 'admin'), 'middleware' => ['web', 'auth'], 'namespace' => 'Admin'], function () {
     // Backpack\MenuCRUD
-    Route::crud('menu-item', 'MenuItemCrudController');
+    Route::crud('menu-item/{menu_id}', 'MenuItemCrudController');
+    Route::crud('menu', 'MenuCrudController');
 });
 ```
 
 6) [optional] Add a menu item for it in resources/views/vendor/backpack/base/inc/sidebar.blade.php or menu.blade.php:
 
 ```html
-<li><a href="{{ backpack_url('menu-item') }}"><i class="la la-list"></i> <span>Menu</span></a></li>
+<li><a href="{{ backpack_url('menu') }}"><i class="la la-list"></i> <span>Menu</span></a></li>
 ```
 
 
@@ -88,25 +92,68 @@ php artisan migrate
 4) [optional] Add a menu item for it in resources/views/vendor/backpack/base/inc/sidebar_content.blade.php or menu.blade.php:
 
 ```
-php artisan backpack:add-sidebar-content "<li class='nav-item'><a class='nav-link' href='{{ backpack_url('menu-item') }}'><i class='nav-icon la la-list'></i> <span>Menu</span></a></li>"
+php artisan backpack:add-sidebar-content "<li class='nav-item'><a class='nav-link' href='{{ backpack_url('menu') }}'><i class='nav-icon la la-list'></i> <span>Menu</span></a></li>"
 ```
 
 #### Usage in your template
 
 Here's a simple example to use in your frontend:
 
-You can access item children with `$item->children`
+Create a recursive single menu item renderer in blade:
+
+`menu_renderer.blade.php`
 
 ```
-@foreach (\App\MenuItem::getTree(); as $item)
-  <a class="no-underline hover:underline p-3"
-     href="{{$item->url()}}">
-     {{ $item->name }}
-  </a> 
-@endforeach 
+<li>
+    <a href="{{ $menu['menu_data']->url() }}">{{ $menu['menu_data']->name }}@if ($menu['menu_data']->is_current) (current) @endif</a>
+    @isset($menu['submenus'])
+        @foreach ($menu['submenus'] as $item)
+            <ul>
+                @include('frontend.components.menu_renderer', ['menu' => $item])
+            </ul>
+        @endforeach
+    @endisset
+</li>
 ```
 
-For Installation type (B), change the namespace to `Backpack\MenuCRUD\app\Models`.
+Create a menu wrapper which will call the first single menu renderer:
+
+`menu_wrapper.blade.php`
+
+```
+<ul>
+    @foreach ($menus as $item)
+        @include('frontend.components.menu_renderer', ['menu' => $item])
+    @endforeach
+</ul>
+```
+
+Call the view*, for example, from Controller:
+
+```
+public function rendermenu()
+    {
+        return view('frontend.components.menu_wrapper', ['menus' => \App\Models\Menu::getTree('mobile_menu')]);
+    }
+```
+
+`getTree()` method above needs a string parameter named `placement`. It is used to find / get the menu and its items that's set to that placement. You can set the placement options in the `config/backpack/menu.php` file, for example:
+
+```
+<?php
+
+return [
+    'placement' => [
+        "header_menu" => "Header Menu",
+        "mobile_menu" => "Mobile Menu",
+        "footer_menu" => "Footer Menu",
+    ]
+];
+```
+
+So basically those array keys should be constant throughout the system development and deployment.
+
+*For Installation type (B), change the namespace to `Backpack\MenuCRUD\app\Models`.
 
 ## Change log
 
